@@ -7401,18 +7401,12 @@ function cmov(x, y, b, field) {
 
 module.exports = function (target) {
     if (l7.privacypass.length < 1) return console.warn('[privacy-pass]: Stored tokens are empty');
-
-    //Get token from master:
-    Fc({
-        op: 'get-privacypass-token'
-    }, token => {
-        if (!token) {
-            return logger('[privacy-pass]: Unable to get token');
-        }
-        token = loadToken(token);
-        let parse = url.parse(target || l7.target),
-            host = parse.host,
-            path = "GET " + parse.path;
-        l7.privacypass = BuildRedeemHeader(token, host, path);
-    });
+    let gg = ~~(Math.random() * l7.privacypass.length);
+    let yeetToken = loadToken(l7.privacypass[gg]);
+    let parse = url.parse(target),
+        host = parse.host,
+        path = "GET " + parse.path;
+    l7.privacypass.splice(gg, 1);
+    fs.writeFileSync('./privacypass.json', JSON.stringify(l7.privacypass));
+    return BuildRedeemHeader(yeetToken, host, path);
 }

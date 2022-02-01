@@ -16,20 +16,26 @@ module.exports = function DDoSGuard() {
             cookie = '';
         }
         if (['5sec', 'free'].indexOf(l7.firewall[1]) !== -1 || force) {
-            let bypassJar = request.jar();
-            request.get({
+            cloudscraper.get({
                 url: l7.parsed.protocol + '//ddgu.ddos-guard.net/g',
                 gzip: true,
                 proxy: proxy,
-                jar: bypassJar,
                 headers: {
-                    'Connection': 'keep-alive',
+                    'Connection': 'Keep-Alive',
                     'Cache-Control': 'max-age=0',
                     'Upgrade-Insecure-Requests': 1,
                     'User-Agent': uagent,
-                    'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
                     'Accept-Encoding': 'gzip, deflate, br',
-                    'Accept-Language': 'en-US;q=0.9',
+                    'Accept-Language': 'tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7',
+                    'Accept': 'application/json',
+                    'Content-type': 'application/json; charset=utf-8', 
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache',
+                    'Sec-Fetch-Dest': 'document',
+                    'Sec-Fetch-Mode': 'navigate',
+                    'Sec-Fetch-User': '?1',
+                    'Upgrade-Insecure-Requests': "1",
                     'Referer': l7.target,
                     'Origin': l7.parsed.protocol + '//' + l7.parsed.host
                 }
@@ -38,42 +44,58 @@ module.exports = function DDoSGuard() {
                     return false;
                 }
 
-                request.get({
+                cloudscraper.get({
                     url: l7.parsed.protocol + '//ddgu.ddos-guard.net/c',
                     gzip: true,
                     proxy: proxy,
-                    jar: bypassJar,
                     headers: {
-                        'Connection': 'keep-alive',
+                        'Connection': 'Keep-Alive',
+                        'Cache-Control': 'max-age=0',
+                        'Upgrade-Insecure-Requests': 1,
                         'User-Agent': uagent,
-                        'Accept': '*/*',
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
                         'Accept-Encoding': 'gzip, deflate, br',
-                        'Referer': l7.target,
-                        Origin: l7.parsed.protocol + '//' + l7.parsed.host,
-                        'Accept-Language': 'en-US;q=0.9'
+                        'Accept-Language': 'tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7',
+                        'Accept': 'application/json',
+                        'Content-type': 'application/json; charset=utf-8', 
+                        'Cache-Control': 'no-cache',
+                        'Pragma': 'no-cache',
+                        'Sec-Fetch-Dest': 'document',
+                        'Sec-Fetch-Mode': 'navigate',
+                        'Sec-Fetch-User': '?1',
+                        'Upgrade-Insecure-Requests': "1",
+                        'Referer': l7.parsed.protocol + '//' + l7.parsed.host + '/',
+                        'Origin': l7.parsed.protocol + '//' + l7.parsed.host + '/',
                     }
                 }, (err, res, body) => {
                     if (err || !res || !body) {
                         return false;
                     }
 
-                    request.post({
+                    cloudscraper.post({
                         url: l7.parsed.protocol + '//ddgu.ddos-guard.net/ddgu/',
                         gzip: true,
                         proxy: proxy,
-                        jar: bypassJar,
+                        jar: true,
                         followAllRedirects: true,
                         headers: {
                             'Connection': 'Keep-Alive',
                             'Cache-Control': 'max-age=0',
                             'Upgrade-Insecure-Requests': 1,
                             'User-Agent': uagent,
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
                             'Accept-Encoding': 'gzip, deflate, br',
-                            "Referer": l7.target,
-                            Origin: l7.parsed.protocol + '//' + l7.parsed.host,
-                            'Accept-Language': 'en-US;q=0.9'
+                            'Accept-Language': 'tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7',
+                            'Accept': 'application/json',
+                            'Content-type': 'application/json; charset=utf-8', 
+                            'Cache-Control': 'no-cache',
+                            'Pragma': 'no-cache',
+                            'Sec-Fetch-Dest': 'document',
+                            'Sec-Fetch-Mode': 'navigate',
+                            'Sec-Fetch-User': '?1',
+                            'Upgrade-Insecure-Requests': "1",
+                            "Referer": l7.parsed.protocol + '//' + l7.parsed.host + '/',
+                            'Origin': l7.parsed.protocol + '//' + l7.parsed.host + '/',
                         },
                         form: {
                             u: uS,
@@ -84,11 +106,7 @@ module.exports = function DDoSGuard() {
                         if (err || !res || !body) {
                             return false;
                         }
-                        if (body.indexOf('enter the symbols from the picture to the form below. </div>') !== -1) {
-                            logger('[ddos-guard] Captcha received, Ip rep died.');
-                        } else {
-                            callback(res.request.headers.cookie);
-                        }
+                        callback(res.request.headers.cookie);
                     });
                 });
             });
@@ -104,9 +122,19 @@ module.exports = function DDoSGuard() {
                     'Cache-Control': 'max-age=0',
                     'Upgrade-Insecure-Requests': 1,
                     'User-Agent': uagent,
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
                     'Accept-Encoding': 'gzip, deflate, br',
-                    'Accept-Language': 'en-US;q=0.9'
+                    'Accept-Language': 'tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7',
+                    'Accept': 'application/json',
+                    'Content-type': 'application/json; charset=utf-8', 
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache',
+                    'Sec-Fetch-Dest': 'document',
+                    'Sec-Fetch-Mode': 'navigate',
+                    'Sec-Fetch-User': '?1',
+                    'Upgrade-Insecure-Requests': "1",
+                    "Referer": l7.parsed.protocol + '//' + l7.parsed.host + '/',
+                    'Origin': l7.parsed.protocol + '//' + l7.parsed.host + '/',
                 }
             }, (err, res, body) => {
                 if (err || !res || !body) {

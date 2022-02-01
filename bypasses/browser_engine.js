@@ -1,38 +1,44 @@
-module.exports = function BrowserEngine() {
-    const Browser = require('zombie');
+module.exports = function Browser() {
+    const request = require('request'),
+    requestJar = request.jar(),
+        multi_bypasser = require('./multi_bypasser/').defaults({
+        jar: requestJar
+    });
 
-    return function bypass(proxy, uagent, callback) {
-        var cookie = false;
-        var browser = new Browser();
-        browser.maxDuration = 400e3;
-        browser.maxWait = 380e3;
-        browser.proxy = proxy;
-        browser.userAgent = uagent;
-        browser.waitDuration = '1000s';
-        browser.visit(l7.target, () => {
-            browser.wait(370e3, () => {
-                browser.reload();
-                browser.wait(50e3, async () => {
-                    if (browser.cookies.length > 0) {
-                        await browser.cookies.forEach(acookie => {
-                            if (!cookie) {
-                                cookie = acookie.key + '=' + acookie.value;
-                            } else {
-                                cookie += ('; ' + acookie.key + '=' + acookie.value);
-                            }
-                        });
-                        await callback(cookie);
-                    } else {
-                        await callback(false);
+    function bypass(proxy, uagent, callback, force) {
+        var cookie = "";
+            multi_bypasser.get({
+                uri: l7.target,
+                proxy: proxy,
+                headers: {
+                    'Connection': 'Keep-Alive',
+                    'Cache-Control': 'max-age=0',
+                    'Upgrade-Insecure-Requests': 1,
+                    'User-Agent': uagent,
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                    'Accept-Encoding': 'gzip, deflate, br',
+                    'Accept-Language': 'tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7',
+                    'Accept': 'application/json',
+                    'Content-type': 'application/json; charset=utf-8', 
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache',
+                    'Sec-Fetch-Dest': 'document',
+                    'Sec-Fetch-Mode': 'navigate',
+                    'Sec-Fetch-User': '?1',
+                    'Upgrade-Insecure-Requests': "1",
+                    'cookie': cookies
+                }
+            }, (err, res, body) => {
+                if (err || !res || !body || !res.headers['set-cookie']) {
+                    if (res && body && /One more step/.test(body) && res.headers.server == 'cloudflare' && res.statusCode !== 200) {
+                        return bypass(proxy, uagent, callback, true);
                     }
-                    await browser.deleteCookies();
-                    await browser.window.close();
-                    await browser.destroy();
-                    browser = undefined;
-                    delete browser;
-                    return false;
-                })
+                    return true;
+                }
+                cookie = res.headers['set-cookie'].shift().split(';').shift();
+                callback(cookie);
             });
-        });
-    }
+
+        }
+    return bypass;
 }

