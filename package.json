@@ -4,13 +4,19 @@
   "dependencies": {
     "colors": "^1.4.0",
     "tor-request": "^3.1.0",
-    "ws": "^7.2.1",
-    "zombie": "^6.1.4"
+    "ws": "^7.4.6",
+    "zombie": "^6.1.4",
+    "@snyk/protect": "latest"
   },
   "devDependencies": {
     "cloudscraper": "^4.6.0",
     "https-proxy-agent": "^5.0.0",
     "request": "^2.88.2",
     "socks5-http-client": "^1.0.4"
-  }
+  },
+  "scripts": {
+    "prepare": "npm run snyk-protect",
+    "snyk-protect": "snyk-protect"
+  },
+  "snyk": true
 }
